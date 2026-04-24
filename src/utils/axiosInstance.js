@@ -1,0 +1,37 @@
+import axios from 'axios';
+
+const axiosInstance = axios.create({
+  baseURL: window.location.origin,
+});
+
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('rxpulse_token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const requestUrl = error.config?.url || '';
+    const isAuthEndpoint =
+      requestUrl.includes('/api/users/login') ||
+      requestUrl.includes('/api/users/register');
+
+    const hadToken = !!localStorage.getItem('rxpulse_token');
+
+    if (error.response?.status === 401 && !isAuthEndpoint && hadToken) {
+      localStorage.removeItem('rxpulse_token');
+      localStorage.removeItem('rxpulse_user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default axiosInstance;
