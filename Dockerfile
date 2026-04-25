@@ -1,7 +1,8 @@
 # ── Stage 1: Builder ─────────────────────────────────────────────
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 
+RUN apk update && apk upgrade
 COPY package*.json ./
 RUN npm ci
 
@@ -13,7 +14,8 @@ COPY src/ ./src/
 RUN npm run build
 
 # ── Stage 2: Production Nginx ─────────────────────────────────── 
-FROM nginx:1.25-alpine AS production
+FROM nginx:1.27-alpine AS production
+RUN apk update && apk upgrade
 RUN rm -f /etc/nginx/conf.d/default.conf /etc/nginx/nginx.conf
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
