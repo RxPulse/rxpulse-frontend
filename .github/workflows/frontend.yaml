@@ -13,7 +13,6 @@ on:
       - "vite.config.js"
       - "nginx.conf"
       - ".github/workflows/frontend.yaml"
-      
   pull_request:
     branches:
       - main
