@@ -1,167 +1,133 @@
-import { Pill, ShoppingCart } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { Pill, AlertTriangle, CheckCircle, ShoppingCart } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 
-const CATEGORY_COLORS = {
-  Antibiotics:       { bg: '#FFF3E0', icon: '#F57C00' },
-  Painkillers:       { bg: '#FCE4EC', icon: '#C2185B' },
-  Vitamins:          { bg: '#E8F5E9', icon: '#2D6A4F' },
-  Antidiabetics:     { bg: '#E3F2FD', icon: '#1565C0' },
-  Antihypertensives: { bg: '#F3E5F5', icon: '#6A1B9A' },
-  Antacids:          { bg: '#E0F7FA', icon: '#00838F' },
-  Antihistamines:    { bg: '#FFF8E1', icon: '#F9A825' },
-  Syrups:            { bg: '#F1F8E9', icon: '#558B2F' },
-};
-
-function getStockLabel(qty, unit) {
-  if (qty === null || qty === undefined) return { label: 'In Stock', color: 'text-green-600', dot: 'bg-green-500' };
-  if (qty <= 0) return { label: 'Out of Stock', color: 'text-red-500', dot: 'bg-red-500' };
-
-  const u = (unit || 'tablets').toLowerCase();
-
-  if (u === 'ml') {
-    return { label: `${qty} ml left`, color: 'text-green-600', dot: 'bg-green-500' };
-  }
-
-  if (u === 'capsules') {
-    const strips = Math.floor(qty / 10);
-    const rem = qty % 10;
-    if (strips > 0) {
-      return {
-        label: rem > 0 ? `${strips} strip${strips > 1 ? 's' : ''} + ${rem}` : `${strips} strip${strips > 1 ? 's' : ''}`,
-        color: 'text-green-600',
-        dot: 'bg-green-500'
-      };
-    }
-    return { label: `${qty} capsules`, color: 'text-amber-600', dot: 'bg-amber-500' };
-  }
-
-  if (u === 'tablets') {
-    const strips = Math.floor(qty / 10);
-    const rem = qty % 10;
-    if (strips > 0) {
-      return {
-        label: rem > 0 ? `${strips} strip${strips > 1 ? 's' : ''} + ${rem}` : `${strips} strip${strips > 1 ? 's' : ''}`,
-        color: 'text-green-600',
-        dot: 'bg-green-500'
-      };
-    }
-    return { label: `${qty} tablets`, color: 'text-amber-600', dot: 'bg-amber-500' };
-  }
-
-  return { label: `${qty} ${u} left`, color: 'text-green-600', dot: 'bg-green-500' };
-}
-
-export default function MedicineCard({ medicine, stock, onAddToCart }) {
-  const navigate = useNavigate();
+export default function MedicineCard({ medicine, stockInfo, onLoginRequired, onAddToCart }) {
   const { isAuthenticated } = useAuth();
-  const { isInCart, getQuantity } = useCart();
+  const { addToCart } = useCart();
 
-  const qty = stock?.currentQuantity ?? null;
-  const unit = stock?.unit || medicine?.unit || 'tablets';
-  const inStock = qty === null ? true : qty > 0;
-  const inCart = isInCart(medicine._id);
-  const cartQty = getQuantity(medicine._id);
+  const isOutOfStock = stockInfo && stockInfo.currentQuantity === 0;
+  const isLowStock = stockInfo && stockInfo.isLowStock;
+  
+  // Calculate days to expiry
+  const expiryDate = new Date(medicine.expiryDate);
+  const now = new Date();
+  const daysToExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+  const isExpiringSoon = daysToExpiry > 0 && daysToExpiry <= 30;
 
-  const stockInfo = getStockLabel(qty, unit);
-  const catStyle = CATEGORY_COLORS[medicine.category] || { bg: '#F5F5F5', icon: '#9E9E9E' };
-
-  const handleAddToCart = (e) => {
-    e.stopPropagation();
-    onAddToCart(medicine, stock);
+  const handleAddToCartClick = (e) => {
+    e.preventDefault(); // prevent link navigation
+    if (isOutOfStock) return;
+    
+    // Support both prop patterns
+    if (onAddToCart) {
+      onAddToCart(medicine, stockInfo);
+    } else {
+      if (!isAuthenticated && onLoginRequired) {
+        onLoginRequired();
+      } else {
+        addToCart(medicine, 1, stockInfo?.currentQuantity || 999);
+      }
+    }
   };
 
   return (
-    <div
-      className="medicine-card flex flex-col cursor-pointer"
-      onClick={() => navigate(`/medicines/${medicine._id}`)}
-    >
-      {/* Image Area */}
-      <div
-        className="h-44 flex items-center justify-center rounded-t-xl overflow-hidden relative"
-        style={{ backgroundColor: catStyle.bg }}
-      >
-        {medicine.imageUrl ? (
-          <img
-            src={medicine.imageUrl}
-            alt={medicine.name}
-            className="w-full h-full object-contain p-4"
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.parentNode.querySelector('.fallback-icon').style.display = 'flex';
-            }}
-          />
-        ) : null}
+    <Link to={`/medicines/${medicine._id}`} className="block group">
+      <div className="card h-full flex flex-col hover:-translate-y-1 hover:shadow-xl hover:shadow-brand-500/10 transition-all duration-300 overflow-hidden relative">
+        
+        {/* Top Section */}
+        <div className="h-40 bg-gradient-to-br from-dark-700 to-dark-800 relative flex items-center justify-center border-b border-dark-700">
+          {/* Dot Pattern */}
+          <div 
+            className="absolute inset-0 opacity-20"
+            style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.15) 1px, transparent 0)', backgroundSize: '16px 16px' }}
+          ></div>
 
-        <div
-          className="fallback-icon absolute inset-0 flex items-center justify-center"
-          style={{ display: medicine.imageUrl ? 'none' : 'flex' }}
-        >
-          <div className="flex flex-col items-center gap-2">
-            <Pill
-              size={52}
-              style={{ color: catStyle.icon }}
-              className="opacity-70"
-            />
-            <span
-              className="text-[10px] font-semibold uppercase tracking-wider opacity-60"
-              style={{ color: catStyle.icon }}
-            >
-              {medicine.unit || 'tablets'}
-            </span>
+          {/* Center Icon */}
+          <div className="w-16 h-16 rounded-2xl bg-dark-800 border border-dark-600 flex items-center justify-center shadow-lg relative z-10 group-hover:scale-110 group-hover:border-brand-500/50 group-hover:shadow-brand-500/20 transition-all duration-500">
+            <Pill size={32} className="text-dark-400 group-hover:text-brand-400 transition-colors" />
           </div>
+
+          {/* Top Left Badges */}
+          <div className="absolute top-3 left-3 flex flex-col gap-2 z-20">
+            {medicine.requiresPrescription && (
+              <span className="badge-yellow shadow-lg shadow-yellow-500/10 backdrop-blur-md bg-yellow-500/20">Rx Only</span>
+            )}
+            {isExpiringSoon && (
+              <span className="badge-yellow shadow-lg backdrop-blur-md bg-yellow-500/20">Exp: {daysToExpiry}d</span>
+            )}
+          </div>
+
+          {/* Top Right Category */}
+          <div className="absolute top-3 right-3 z-20">
+            <span className="badge-gray shadow-lg backdrop-blur-md bg-dark-800/80">{medicine.category}</span>
+          </div>
+
+          {/* Out of Stock Overlay */}
+          {isOutOfStock && (
+            <div className="absolute inset-0 bg-dark-950/60 backdrop-blur-[2px] z-30 flex items-center justify-center">
+              <span className="badge-red px-3 py-1.5 text-sm">Out of Stock</span>
+            </div>
+          )}
         </div>
 
-        {medicine.requiresPrescription && (
-          <span className="absolute top-2 right-2 bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
-            Rx
-          </span>
-        )}
+        {/* Bottom Content */}
+        <div className="p-4 flex flex-col flex-1">
+          <div className="mb-4">
+            <h3 className="font-semibold text-dark-100 group-hover:text-brand-300 transition-colors line-clamp-1 mb-1">
+              {medicine.name}
+            </h3>
+            <p className="text-xs text-dark-400 line-clamp-1 mb-0.5">{medicine.genericName}</p>
+            <p className="text-xs text-dark-500 line-clamp-1">{medicine.manufacturer}</p>
+          </div>
 
-        <span className="absolute top-2 left-2 bg-white/80 backdrop-blur-sm text-[10px] font-semibold text-[#1A1A1A] px-2 py-0.5 rounded-full">
-          {medicine.category}
-        </span>
-      </div>
+          <div className="mt-auto flex flex-col gap-3">
+            {/* Stock Status Row */}
+            {stockInfo && (
+              <div className="flex items-center gap-1.5 text-xs font-medium">
+                {isOutOfStock ? (
+                  <>
+                    <AlertTriangle size={14} className="text-red-500" />
+                    <span className="text-red-400">Out of stock</span>
+                  </>
+                ) : isLowStock ? (
+                  <>
+                    <AlertTriangle size={14} className="text-yellow-500" />
+                    <span className="text-yellow-400">Low stock ({stockInfo.currentQuantity} {stockInfo.unit})</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={14} className="text-fresh-500" />
+                    <span className="text-fresh-400">In stock ({stockInfo.currentQuantity} {stockInfo.unit})</span>
+                  </>
+                )}
+              </div>
+            )}
 
-      {/* Content */}
-      <div className="p-4 flex flex-col flex-1 gap-1.5">
-        <h3 className="font-bold text-[#1A1A1A] text-sm leading-tight line-clamp-2">
-          {medicine.name}
-        </h3>
-        <p className="text-xs text-[#6B7280]">{medicine.genericName}</p>
-        <p className="text-[11px] text-[#9CA3AF]">{medicine.manufacturer}</p>
-
-        <div className="mt-auto pt-3 border-t border-[#F0F0F0]">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-lg font-bold text-[#1A1A1A]">
-              ₹{medicine.unitPrice?.toFixed(2)}
-            </span>
-            <div className="flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${stockInfo.dot}`} />
-              <span className={`text-xs font-medium ${stockInfo.color}`}>
-                {stockInfo.label}
-              </span>
+            {/* Price & Action Row */}
+            <div className="pt-3 border-t border-dark-700/50 flex items-center justify-between">
+              <div className="flex items-baseline gap-1">
+                <span className="text-lg font-bold text-white">₹{medicine.unitPrice.toFixed(2)}</span>
+                <span className="text-[10px] text-dark-500 uppercase tracking-wider">/ {medicine.unit}</span>
+              </div>
+              
+              <button 
+                onClick={handleAddToCartClick}
+                disabled={isOutOfStock}
+                className={`p-2 rounded-xl transition-all duration-200 flex items-center justify-center
+                  ${isOutOfStock 
+                    ? 'bg-dark-700 text-dark-500 cursor-not-allowed' 
+                    : 'bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-500/20 active:scale-95'
+                  }`}
+              >
+                <ShoppingCart size={18} />
+              </button>
             </div>
           </div>
-
-          <button
-            id={`add-cart-${medicine._id}`}
-            onClick={handleAddToCart}
-            disabled={!inStock}
-            className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 active:scale-95
-              ${!inStock
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : inCart
-                  ? 'bg-[#E8F5E9] text-[#2D6A4F] border border-[#2D6A4F]'
-                  : 'bg-[#2D6A4F] text-white hover:bg-[#245A42]'
-              }`}
-          >
-            <ShoppingCart size={15} />
-            {inCart ? `In Cart (${cartQty})` : 'Add to Cart'}
-          </button>
         </div>
+
       </div>
-    </div>
+    </Link>
   );
 }

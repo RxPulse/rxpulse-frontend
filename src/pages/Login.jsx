@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Pill, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Pill, Eye, EyeOff, LogIn, ArrowRight, Shield, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 export default function Login() {
   const { login } = useAuth();
@@ -12,99 +13,183 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    if (!form.email || !form.password) { setError('Please fill in all fields.'); return; }
+    if (!form.email || !form.password) { 
+      toast.error('Please fill in all fields.'); 
+      return; 
+    }
     setLoading(true);
     try {
       const user = await login(form.email, form.password);
-      navigate(user.role === 'admin' ? '/admin/dashboard' : from, { replace: true });
+      navigate(user.role === 'admin' ? '/admin' : from, { replace: true });
+      toast.success('Successfully logged in');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please try again.');
+      toast.error(err.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-[#1A1A1A] items-center justify-center p-12">
-        <div className="text-center text-white max-w-sm">
-          <div className="w-20 h-20 bg-[#2D6A4F] rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Pill size={40} className="text-white" />
+    <div className="min-h-screen flex bg-dark-950 font-sans">
+      {/* LEFT PANEL */}
+      <div className="hidden lg:flex w-[45%] bg-dark-900 border-r border-dark-800 relative overflow-hidden flex-col justify-between p-12">
+        
+        {/* Background Gradients & Patterns */}
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-brand-500/5 blur-[100px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-fresh-500/5 blur-[100px]"></div>
+        <div 
+          className="absolute inset-0 opacity-[0.03] z-0"
+          style={{ backgroundImage: 'linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)', backgroundSize: '32px 32px' }}
+        ></div>
+
+        {/* Top: Logo */}
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-fresh-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
+              <Pill size={22} className="text-white" />
+            </div>
+            <span className="text-2xl font-bold tracking-tight text-gradient-brand">RxPulse</span>
           </div>
-          <h1 className="text-3xl font-bold mb-3">RxPulse</h1>
-          <p className="text-gray-400 leading-relaxed">Your trusted pharmacy platform. Authentic medicines, fast delivery, expert care.</p>
-          <div className="mt-8 grid grid-cols-3 gap-4 text-center">
-            {[['200+', 'Medicines'], ['3', 'Services'], ['24/7', 'Support']].map(([v, l]) => (
-              <div key={l} className="bg-white/5 rounded-xl p-3">
-                <div className="text-xl font-bold text-[#2D6A4F]">{v}</div>
-                <div className="text-xs text-gray-400 mt-1">{l}</div>
+          <span className="font-mono text-xs text-dark-400">Pharmacy OS v1.0.0</span>
+        </div>
+
+        {/* Middle: Hero */}
+        <div className="relative z-10 max-w-md my-auto pt-10">
+          <h1 className="text-5xl font-black text-white leading-[1.1] mb-2 tracking-tight">
+            Pharmacy Management
+          </h1>
+          <h1 className="text-5xl font-black text-gradient-brand leading-[1.1] mb-6 tracking-tight">
+            Reimagined
+          </h1>
+          <p className="text-lg text-dark-400 mb-10 leading-relaxed">
+            The next-generation platform for pharmacy operations, delivering secure, real-time insights across your entire supply chain.
+          </p>
+
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+                <Shield className="text-brand-400" size={24} />
               </div>
-            ))}
+              <span className="text-base font-medium text-dark-100">Secure JWT Authentication</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+                <Activity className="text-brand-400" size={24} />
+              </div>
+              <span className="text-base font-medium text-dark-100">Real-time Stock Monitoring</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+                <Pill className="text-brand-400" size={24} />
+              </div>
+              <span className="text-base font-medium text-dark-100">Complete Medicine Catalog</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom: Deployment Info */}
+        <div className="relative z-10 card bg-dark-800/80 backdrop-blur-sm p-5 border border-dark-700 w-full mt-10 shadow-2xl">
+          <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-fresh-500 animate-pulse"></div>
+              <span className="text-sm font-bold text-fresh-400">v1.0.0 — Green Active</span>
+            </div>
+            <span className="text-xs font-mono text-stable-400 bg-stable-500/10 px-2 py-0.5 rounded border border-stable-500/20">Previous: v0.0.3</span>
+          </div>
+          <p className="text-xs text-dark-400 mb-4">Successfully promoted via Argo Rollouts BlueGreen deployment.</p>
+          <div className="w-full h-1.5 flex rounded-full overflow-hidden bg-dark-900 border border-dark-700">
+            <div className="h-full bg-fresh-500 w-full"></div>
           </div>
         </div>
       </div>
 
-      {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-white">
-        <div className="w-full max-w-md">
-          <div className="flex items-center gap-2.5 mb-8 lg:hidden">
-            <div className="w-8 h-8 bg-[#2D6A4F] rounded-lg flex items-center justify-center">
-              <Pill size={18} className="text-white" />
+      {/* RIGHT PANEL */}
+      <div className="flex-1 flex items-center justify-center p-6 bg-dark-950 relative">
+        <div className="w-full max-w-md relative z-10">
+          
+          {/* Mobile Logo */}
+          <div className="flex lg:hidden items-center gap-3 mb-10 justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-fresh-500 flex items-center justify-center">
+              <Pill size={22} className="text-white" />
             </div>
-            <span className="text-xl font-bold">RxPulse</span>
+            <span className="text-2xl font-bold text-white tracking-tight">RxPulse</span>
           </div>
 
-          <h2 className="text-2xl font-bold text-[#1A1A1A] mb-1">Welcome back</h2>
-          <p className="text-[#6B7280] mb-8 text-sm">Sign in to your account to continue</p>
+          <div className="mb-10 text-center lg:text-left">
+            <h2 className="text-3xl font-bold text-white mb-2">Welcome back</h2>
+            <p className="text-dark-400">Sign in to your RxPulse account</p>
+          </div>
 
-          {error && (
-            <div className="flex items-center gap-2 p-3.5 bg-red-50 border border-red-200 rounded-lg mb-5">
-              <AlertCircle size={16} className="text-red-500 flex-shrink-0" />
-              <p className="text-sm text-red-600">{error}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Email address</label>
-              <input id="login-email" name="email" type="email" value={form.email} onChange={handleChange}
-                className="input-field" placeholder="you@example.com" autoComplete="email" />
+              <label className="label">Email address</label>
+              <input 
+                id="login-email" 
+                name="email" 
+                type="email" 
+                value={form.email} 
+                onChange={handleChange}
+                className="input" 
+                placeholder="you@example.com" 
+                autoComplete="email"
+                autoFocus
+              />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#1A1A1A] mb-1.5">Password</label>
+              <label className="label">Password</label>
               <div className="relative">
-                <input id="login-password" name="password" type={showPassword ? 'text' : 'password'}
-                  value={form.password} onChange={handleChange}
-                  className="input-field pr-11" placeholder="••••••••" autoComplete="current-password" />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280]">
+                <input 
+                  id="login-password" 
+                  name="password" 
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password} 
+                  onChange={handleChange}
+                  className="input pr-11" 
+                  placeholder="••••••••" 
+                  autoComplete="current-password" 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-dark-400 hover:text-white transition-colors"
+                >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
-            <button id="login-submit" type="submit" disabled={loading} className="btn-primary w-full py-3 mt-2">
-              {loading ? 'Signing in...' : 'Sign In'}
+            
+            <button 
+              id="login-submit" 
+              type="submit" 
+              disabled={loading} 
+              className="btn-primary w-full py-3.5 mt-4 justify-center text-base"
+            >
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  Signing in...
+                </>
+              ) : (
+                <>
+                  <LogIn size={20} />
+                  Sign In
+                  <ArrowRight size={18} className="ml-auto opacity-70" />
+                </>
+              )}
             </button>
           </form>
 
-          <p className="text-center text-sm text-[#6B7280] mt-6">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-[#2D6A4F] font-semibold hover:underline">Create account</Link>
+          <p className="text-center text-sm text-dark-400 mt-8">
+            New to RxPulse?{' '}
+            <Link to="/register" className="text-brand-400 font-semibold hover:text-brand-300 transition-colors">
+              Create an account
+            </Link>
           </p>
-
-          <div className="mt-6 p-4 bg-[#F9FAFB] rounded-xl text-xs text-[#6B7280]">
-            <p className="font-semibold text-[#1A1A1A] mb-1.5">Demo Credentials</p>
-            <p>Admin: <span className="font-mono">admin@rxpulse.com</span> / <span className="font-mono">Admin@123</span></p>
-            <p className="mt-1">Customer: <span className="font-mono">ravi@example.com</span> / <span className="font-mono">User@123</span></p>
-          </div>
         </div>
       </div>
     </div>

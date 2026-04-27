@@ -1,180 +1,240 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal } from 'lucide-react';
+import { Search, X, SlidersHorizontal, RefreshCw, Package } from 'lucide-react';
 import { getMedicines, getCategories } from '../api/catalogApi';
 import { getStocks } from '../api/inventoryApi';
 import MedicineCard from '../components/common/MedicineCard';
-import SearchBar from '../components/common/SearchBar';
 import LoginPromptModal from '../components/common/LoginPromptModal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
 
 const PAGE_SIZE = 12;
 
 export default function Shop() {
-  const { isAuthenticated } = useAuth();
-  const { addToCart } = useCart();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [medicines, setMedicines] = useState([]);
   const [categories, setCategories] = useState([]);
   const [stockMap, setStockMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState(searchParams.get('category') || '');
-  const [sort, setSort] = useState('name-asc');
   const [page, setPage] = useState(1);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [toast, setToast] = useState(null);
+
+  const fetchData = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const [medRes, catRes, stockRes] = await Promise.all([
+        getMedicines(), 
+        getCategories(), 
+        getStocks()
+      ]);
+      const meds = medRes.data?.data?.medicines || medRes.data?.data || [];
+      const cats = catRes.data?.data?.categories || catRes.data?.data || [];
+      const stocks = stockRes.data?.data?.stocks || stockRes.data?.data || [];
+      
+      const map = {};
+      stocks.forEach((s) => { map[s.medicineName] = s; });
+      
+      setMedicines(meds);
+      setCategories(cats);
+      setStockMap(map);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [medRes, catRes, stockRes] = await Promise.all([getMedicines(), getCategories(), getStocks()]);
-        const meds = medRes.data?.data?.medicines || medRes.data?.data || [];
-        const cats = catRes.data?.data?.categories || catRes.data?.data || [];
-        const stocks = stockRes.data?.data?.stocks || stockRes.data?.data || [];
-        const map = {};
-        stocks.forEach((s) => { map[s.medicineName] = s; });
-        setMedicines(meds);
-        setCategories(cats);
-        setStockMap(map);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
   const filtered = useMemo(() => {
     let list = [...medicines];
-    if (search) list = list.filter((m) => m.name.toLowerCase().includes(search.toLowerCase()) || m.genericName?.toLowerCase().includes(search.toLowerCase()));
+    if (search) list = list.filter((m) => 
+      m.name.toLowerCase().includes(search.toLowerCase()) || 
+      m.genericName?.toLowerCase().includes(search.toLowerCase())
+    );
     if (selectedCat) list = list.filter((m) => m.category === selectedCat);
-    if (sort === 'name-asc') list.sort((a, b) => a.name.localeCompare(b.name));
-    else if (sort === 'price-asc') list.sort((a, b) => a.unitPrice - b.unitPrice);
-    else if (sort === 'price-desc') list.sort((a, b) => b.unitPrice - a.unitPrice);
+    list.sort((a, b) => a.name.localeCompare(b.name)); // Default sort A-Z
     return list;
-  }, [medicines, search, selectedCat, sort]);
+  }, [medicines, search, selectedCat]);
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  const showToast = (msg, type = 'success') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const handleAddToCart = (medicine, stock) => {
-    if (!isAuthenticated) { setShowLoginModal(true); return; }
-    addToCart(medicine, 1, stock?.currentQuantity || 999);
-    showToast(`${medicine.name} added to cart!`);
-  };
-
-  const handleCategoryClick = (cat) => {
-    setSelectedCat(cat === selectedCat ? '' : cat);
+  const clearAllFilters = () => {
+    setSearch('');
+    setSelectedCat('');
     setPage(1);
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA]">
-      {/* Header */}
-      <div className="bg-white border-b border-[#F0F0F0] py-6">
-        <div className="page-container">
-          <h1 className="text-2xl font-bold text-[#1A1A1A] mb-4">Browse Medicines</h1>
-          <SearchBar
-            value={search}
-            onChange={(v) => { setSearch(v); setPage(1); }}
-            onClear={() => { setSearch(''); setPage(1); }}
-            placeholder="Search medicines, health products..."
-          />
+    <div className="min-h-screen bg-dark-950 text-dark-100 flex flex-col">
+      {/* Hero Header */}
+      <div className="bg-dark-900 border-b border-dark-800 pb-8 pt-10">
+        <div className="page-container flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tight">Medicine Catalog</h1>
+            <p className="text-dark-400 font-medium">Showing {filtered.length} available products</p>
+          </div>
+          <button 
+            onClick={() => fetchData(true)}
+            disabled={refreshing || loading}
+            className="btn-secondary"
+          >
+            <RefreshCw size={18} className={refreshing ? "animate-spin" : ""} />
+            Refresh
+          </button>
         </div>
       </div>
 
-      <div className="page-container py-6">
-        {/* Filters Row */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div className="flex gap-2 overflow-x-auto pb-1 flex-wrap">
-            <button
-              onClick={() => handleCategoryClick('')}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${selectedCat === '' ? 'bg-[#1A1A1A] text-white' : 'bg-white border border-[#E0E0E0] text-[#6B7280] hover:border-[#2D6A4F]'}`}
-            >
-              All
-            </button>
-            {categories.map((c) => (
-              <button
-                key={c._id}
-                id={`filter-${c.name}`}
-                onClick={() => handleCategoryClick(c.name)}
-                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${selectedCat === c.name ? 'bg-[#2D6A4F] text-white' : 'bg-white border border-[#E0E0E0] text-[#6B7280] hover:border-[#2D6A4F]'}`}
+      <div className="page-container py-8 flex-1 flex flex-col">
+        {/* Search & Filter Row */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          {/* Search Input */}
+          <div className="relative flex-1">
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-400" />
+            <input 
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Search medicines by name or generic..."
+              className="input pl-11 pr-10 bg-dark-900 border-dark-700 h-12"
+            />
+            {search && (
+              <button 
+                onClick={() => { setSearch(''); setPage(1); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-dark-400 hover:text-white hover:bg-dark-700 rounded-lg transition-colors"
               >
-                {c.name}
+                <X size={16} />
               </button>
-            ))}
+            )}
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <SlidersHorizontal size={16} className="text-[#6B7280]" />
+          {/* Category Select */}
+          <div className="relative w-full md:w-64">
+            <SlidersHorizontal size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
             <select
-              id="sort-select"
-              value={sort}
-              onChange={(e) => { setSort(e.target.value); setPage(1); }}
-              className="input-field py-2 text-sm w-auto pr-8"
+              value={selectedCat}
+              onChange={(e) => { setSelectedCat(e.target.value); setPage(1); }}
+              className="input pl-11 bg-dark-900 border-dark-700 h-12 appearance-none cursor-pointer"
             >
-              <option value="name-asc">Name A–Z</option>
-              <option value="price-asc">Price: Low to High</option>
-              <option value="price-desc">Price: High to Low</option>
+              <option value="">All Categories</option>
+              {categories.map(c => (
+                <option key={c._id} value={c.name}>{c.name}</option>
+              ))}
             </select>
+            <ChevronDownIcon />
           </div>
         </div>
 
-        <p className="text-sm text-[#6B7280] mb-5">{filtered.length} medicine{filtered.length !== 1 ? 's' : ''} found</p>
+        {/* Active Filters Row */}
+        {(search || selectedCat) && (
+          <div className="flex items-center flex-wrap gap-3 mb-8">
+            <span className="text-xs font-semibold text-dark-400 uppercase tracking-wider mr-2">Active Filters:</span>
+            
+            {search && (
+              <div className="badge-blue flex items-center gap-1.5 px-3 py-1.5">
+                Search: {search}
+                <button onClick={() => { setSearch(''); setPage(1); }} className="hover:text-white"><X size={12} /></button>
+              </div>
+            )}
+            
+            {selectedCat && (
+              <div className="badge-blue flex items-center gap-1.5 px-3 py-1.5">
+                Category: {selectedCat}
+                <button onClick={() => { setSelectedCat(''); setPage(1); }} className="hover:text-white"><X size={12} /></button>
+              </div>
+            )}
 
-        {loading ? (
-          <div className="flex justify-center py-24"><LoadingSpinner size="lg" text="Loading medicines..." /></div>
-        ) : paginated.length === 0 ? (
-          <div className="text-center py-24">
-            <p className="text-[#6B7280] text-lg mb-2">No medicines found</p>
-            <p className="text-sm text-[#9CA3AF]">Try adjusting your search or filters</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {paginated.map((med) => (
-              <MedicineCard key={med._id} medicine={med} stock={stockMap[med.name]} onAddToCart={handleAddToCart} />
-            ))}
+            <button onClick={clearAllFilters} className="text-sm text-dark-400 hover:text-white underline ml-2 transition-colors">
+              Clear all
+            </button>
           </div>
         )}
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-10">
-            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="px-4 py-2 rounded-lg border border-[#E0E0E0] text-sm font-medium disabled:opacity-40 hover:border-[#2D6A4F] transition-colors">
-              Previous
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <button key={p} onClick={() => setPage(p)}
-                className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${p === page ? 'bg-[#2D6A4F] text-white' : 'border border-[#E0E0E0] hover:border-[#2D6A4F]'}`}>
-                {p}
-              </button>
-            ))}
-            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="px-4 py-2 rounded-lg border border-[#E0E0E0] text-sm font-medium disabled:opacity-40 hover:border-[#2D6A4F] transition-colors">
-              Next
-            </button>
+        {/* Main Content */}
+        {loading ? (
+          <LoadingSpinner size="lg" text="Loading catalog..." />
+        ) : paginated.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-dark-800 border border-dark-700 flex items-center justify-center mb-4">
+              <Package size={32} className="text-dark-500" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">No medicines found</h3>
+            <p className="text-dark-400 mb-6">Try adjusting your filters or search terms.</p>
+            {(search || selectedCat) && (
+              <button onClick={clearAllFilters} className="btn-primary">Clear all filters</button>
+            )}
           </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-10">
+              {paginated.map((med) => (
+                <MedicineCard 
+                  key={med._id} 
+                  medicine={med} 
+                  stockInfo={stockMap[med.name]} 
+                  onLoginRequired={() => setShowLoginModal(true)} 
+                />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-auto pt-8 border-t border-dark-800">
+                <button 
+                  onClick={() => setPage(p => Math.max(1, p - 1))} 
+                  disabled={page === 1}
+                  className="btn-secondary px-4 py-2"
+                >
+                  Previous
+                </button>
+                <div className="hidden sm:flex items-center gap-1.5 mx-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button 
+                      key={p} 
+                      onClick={() => setPage(p)}
+                      className={`w-10 h-10 rounded-xl text-sm font-semibold transition-all duration-200 flex items-center justify-center
+                        ${p === page 
+                          ? 'bg-brand-600 text-white shadow-lg shadow-brand-500/20 border border-brand-500' 
+                          : 'bg-dark-800 text-dark-300 border border-dark-700 hover:border-dark-500 hover:text-white'
+                        }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <button 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
+                  disabled={page === totalPages}
+                  className="btn-secondary px-4 py-2"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {showLoginModal && <LoginPromptModal onClose={() => setShowLoginModal(false)} />}
-      {toast && (
-        <div className="toast-container">
-          <div className={`toast ${toast.type}`}>{toast.msg}</div>
-        </div>
-      )}
     </div>
+  );
+}
+
+// Quick helper for select dropdown arrow
+function ChevronDownIcon() {
+  return (
+    <svg className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
   );
 }

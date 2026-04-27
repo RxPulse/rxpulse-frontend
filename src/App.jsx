@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
 
+import BlueGreenBanner from './components/bluegreen/BlueGreenBanner';
 import Navbar from './components/common/Navbar';
 import Footer from './components/common/Footer';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -19,10 +20,12 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import ManageMedicines from './pages/admin/ManageMedicines';
 import ManageInventory from './pages/admin/ManageInventory';
 import ManageAlerts from './pages/admin/ManageAlerts';
+import UserManagement from './pages/admin/UserManagement';
 
 function PublicLayout({ children }) {
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="min-h-screen bg-dark-950 flex flex-col">
+      <BlueGreenBanner />
       <Navbar />
       <main className="flex-1">{children}</main>
       <Footer />
@@ -40,53 +43,55 @@ function CustomerRoute({ children }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <CartProvider>
-          <Routes>
-            <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
-            <Route path="/shop" element={<PublicLayout><Shop /></PublicLayout>} />
-            <Route path="/medicines/:id" element={<PublicLayout><MedicineDetail /></PublicLayout>} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+    <AuthProvider>
+      <CartProvider>
+        <Routes>
+          <Route path="/" element={<PublicLayout><Home /></PublicLayout>} />
+          <Route path="/shop" element={<PublicLayout><Shop /></PublicLayout>} />
+          <Route path="/medicines/:id" element={<PublicLayout><MedicineDetail /></PublicLayout>} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-            {/* Cart: only for logged in NON-admin users */}
-            <Route
-              path="/cart"
-              element={
-                <CustomerRoute>
-                  <PublicLayout><Cart /></PublicLayout>
-                </CustomerRoute>
-              }
-            />
+          {/* Cart: only for logged in NON-admin users */}
+          <Route
+            path="/cart"
+            element={
+              <CustomerRoute>
+                <PublicLayout><Cart /></PublicLayout>
+              </CustomerRoute>
+            }
+          />
 
-            {/* Admin routes */}
-            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-            <Route
-              path="/admin/dashboard"
-              element={<RoleGuard role="admin"><AdminDashboard /></RoleGuard>}
-            />
-            <Route
-              path="/admin/medicines"
-              element={<RoleGuard role="admin"><ManageMedicines /></RoleGuard>}
-            />
-            <Route
-              path="/admin/inventory"
-              element={<RoleGuard role="admin"><ManageInventory /></RoleGuard>}
-            />
-            <Route
-              path="/admin/alerts"
-              element={<RoleGuard role="admin"><ManageAlerts /></RoleGuard>}
-            />
-	    <Route
-  	      path="/admin/movements"
-  	      element={<RoleGuard role="admin"><ManageMovements /></RoleGuard>}
-	    />
+          {/* Admin routes */}
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route
+            path="/admin/dashboard"
+            element={<RoleGuard role="admin"><AdminDashboard /></RoleGuard>}
+          />
+          <Route
+            path="/admin/medicines"
+            element={<RoleGuard role="admin"><ManageMedicines /></RoleGuard>}
+          />
+          <Route
+            path="/admin/inventory"
+            element={<RoleGuard role="admin"><ManageInventory /></RoleGuard>}
+          />
+          <Route
+            path="/admin/alerts"
+            element={<RoleGuard role="admin"><ManageAlerts /></RoleGuard>}
+          />
+          <Route
+            path="/admin/movements"
+            element={<RoleGuard role="admin"><ManageMovements /></RoleGuard>}
+          />
+          <Route
+            path="/admin/users"
+            element={<RoleGuard role="admin"><UserManagement /></RoleGuard>}
+          />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </CartProvider>
-      </AuthProvider>
-    </BrowserRouter>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </CartProvider>
+    </AuthProvider>
   );
 }

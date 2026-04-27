@@ -1,97 +1,59 @@
 import { useEffect, useState } from 'react';
-import { Pill, Package, Bell, ArrowUpDown } from 'lucide-react';
+import { Pill, Package, Bell, Activity, Users, TrendingUp, RefreshCw } from 'lucide-react';
 import AdminSidebar from '../../components/admin/AdminSidebar';
 import StatCard from '../../components/admin/StatCard';
 import AlertCard from '../../components/admin/AlertCard';
 import StockBarChart from '../../components/charts/StockBarChart';
 import CategoryPieChart from '../../components/charts/CategoryPieChart';
 import LoadingSpinner from '../../components/common/LoadingSpinner';
-import { getMedicines } from '../../api/catalogApi';
-import {
-  getStocks,
-  getActiveAlerts,
-  resolveAlert,
-  getMovements,
-  getMonthlyReport,
-} from '../../api/inventoryApi';
+
+import { getMedicines, getCategories } from '../../api/catalogApi';
+import { getStocks, getActiveAlerts, resolveAlert } from '../../api/inventoryApi';
+import { getAllUsers } from '../../api/authApi';
+import toast from 'react-hot-toast';
 
 export default function AdminDashboard() {
   const [medicines, setMedicines] = useState([]);
   const [stocks, setStocks] = useState([]);
   const [alerts, setAlerts] = useState([]);
-  const [movements, setMovements] = useState([]);
-  const [monthlyData, setMonthlyData] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [categories, setCategories] = useState([]);
+  
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchAll = async () => {
-    setLoading(true);
+  const fetchAll = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+
     try {
-      const [medRes, stockRes, alertRes, movRes] = await Promise.all([
+      const [medRes, stockRes, alertRes, userRes, catRes] = await Promise.all([
         getMedicines(),
         getStocks(),
         getActiveAlerts(),
-        getMovements(),
+        getAllUsers().catch(() => ({ data: { data: [] } })), // fallback if auth fails
+        getCategories().catch(() => ({ data: { data: [] } }))
       ]);
 
-      const medsData = medRes.data?.data;
-      const meds = Array.isArray(medsData)
-        ? medsData
-        : Array.isArray(medsData?.medicines)
-        ? medsData.medicines
-        : [];
+      const extract = (res, key) => {
+        const d = res?.data?.data;
+        if (Array.isArray(d)) return d;
+        if (d && Array.isArray(d[key])) return d[key];
+        return [];
+      };
 
-      const stocksData = stockRes.data?.data;
-      const stks = Array.isArray(stocksData)
-        ? stocksData
-        : Array.isArray(stocksData?.stocks)
-        ? stocksData.stocks
-        : [];
+      setMedicines(extract(medRes, 'medicines'));
+      setStocks(extract(stockRes, 'stocks'));
+      setAlerts(extract(alertRes, 'alerts'));
+      setUsers(extract(userRes, 'users') || extract(userRes, 'data'));
+      setCategories(extract(catRes, 'categories') || extract(catRes, 'data'));
 
-      const alertsData = alertRes.data?.data;
-      const alts = Array.isArray(alertsData)
-        ? alertsData
-        : Array.isArray(alertsData?.alerts)
-        ? alertsData.alerts
-        : [];
-
-      const movsData = movRes.data?.data;
-      const movs = Array.isArray(movsData)
-        ? movsData
-        : Array.isArray(movsData?.movements)
-        ? movsData.movements
-        : [];
-
-      setMedicines(meds);
-      setStocks(stks);
-      setAlerts(alts);
-      setMovements(movs);
-
-      try {
-        const monthRes = await getMonthlyReport();
-        const reportData = monthRes.data?.data;
-
-        if (Array.isArray(reportData)) {
-          setMonthlyData(reportData);
-        } else if (reportData?.dailyData) {
-          const converted = reportData.dailyData.map((d) => ({
-            _id: { month: new Date().getMonth() + 1, day: d.day },
-            totalIn: d.stockIn || 0,
-            totalOut: d.stockOut || 0,
-          }));
-          setMonthlyData(converted);
-        } else if (reportData?.movements) {
-          setMonthlyData([]);
-        } else {
-          setMonthlyData([]);
-        }
-      } catch (e) {
-        console.log('Monthly report not available:', e.message);
-        setMonthlyData([]);
-      }
     } catch (e) {
       console.error('Dashboard fetch error:', e.message);
+      toast.error('Failed to load some dashboard data');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -102,147 +64,148 @@ export default function AdminDashboard() {
   const handleResolve = async (id) => {
     try {
       await resolveAlert(id);
-      fetchAll();
+      toast.success('Alert resolved');
+      fetchAll(true);
     } catch (e) {
-      console.error(e);
+      toast.error('Failed to resolve alert');
     }
   };
 
-  const lowStockCount = Array.isArray(stocks)
-    ? stocks.filter((s) => s.isLowStock).length
-    : 0;
+  // Calculations
+  const totalMedicines = medicines.length;
+  const activeMedicines = medicines.filter(m => m.isActive).length;
+  
+  const totalStock = stocks.reduce((sum, s) => sum + (s.currentQuantity || 0), 0);
+  const lowStockCount = stocks.filter(s => s.isLowStock).length;
+  const outOfStockCount = stocks.filter(s => s.currentQuantity === 0).length;
+  
+  const activeAlerts = alerts.length;
+  const totalUsers = users.length || 0;
+  const totalCategories = categories.length || 0;
 
-  const today = new Date().toDateString();
-  const todayMovements = Array.isArray(movements)
-    ? movements.filter(
-        (m) => new Date(m.date || m.createdAt).toDateString() === today
-      ).length
-    : 0;
+  // Chart Data
+  const stockChartData = [...stocks]
+    .sort((a, b) => (b.currentQuantity || 0) - (a.currentQuantity || 0))
+    .slice(0, 8)
+    .map(s => ({
+      name: s.medicineName ? s.medicineName.substring(0, 12) + (s.medicineName.length > 12 ? '...' : '') : 'Unknown',
+      quantity: s.currentQuantity || 0,
+      isLowStock: s.isLowStock || false
+    }));
+
+  const catMap = {};
+  medicines.forEach(m => {
+    const c = m.category || 'Uncategorized';
+    catMap[c] = (catMap[c] || 0) + 1;
+  });
+  const catChartData = Object.entries(catMap).map(([name, value]) => ({ name, value }));
+
+  const recentAlerts = alerts.slice(0, 5);
 
   return (
-    <div className="flex min-h-screen bg-[#FAFAFA]">
-      <AdminSidebar />
-      <main className="flex-1 p-6 overflow-auto ml-60">
-        <div className="mb-6">
-          <h1 className="text-xl font-bold text-[#1A1A1A]">Dashboard</h1>
-          <p className="text-sm text-[#6B7280] mt-0.5">
-            Overview of your pharmacy operations
-          </p>
+    <div className="flex h-screen overflow-hidden bg-dark-950 font-sans text-dark-100">
+      <AdminSidebar alertCount={activeAlerts} />
+      
+      <main className="flex-1 overflow-y-auto flex flex-col relative">
+        
+        {/* Sticky Top Bar */}
+        <div className="sticky top-0 z-30 border-b border-dark-700/50 px-6 py-4 flex items-center justify-between" style={{ background: 'rgba(15,23,42,0.90)', backdropFilter: 'blur(16px)' }}>
+          <div>
+            <h1 className="text-2xl font-bold text-white tracking-tight">Dashboard</h1>
+            <p className="text-sm text-dark-400 font-medium">RxPulse Admin — Real-time overview</p>
+          </div>
+          <button 
+            onClick={() => fetchAll(true)}
+            disabled={refreshing || loading}
+            className="btn-secondary"
+          >
+            <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
+            Refresh
+          </button>
         </div>
 
-        {loading ? (
-          <div className="flex justify-center py-24">
-            <LoadingSpinner size="lg" text="Loading dashboard..." />
-          </div>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-              <StatCard
-                title="Total Medicines"
-                value={medicines.length}
-                icon={Pill}
-                color="green"
-              />
-              <StatCard
-                title="Low Stock Items"
-                value={lowStockCount}
-                icon={Package}
-                color="red"
-                subtitle="Need restocking"
-              />
-              <StatCard
-                title="Active Alerts"
-                value={alerts.length}
-                icon={Bell}
-                color="amber"
-              />
-              <StatCard
-                title="Movements Today"
-                value={todayMovements}
-                icon={ArrowUpDown}
-                color="blue"
-              />
+        <div className="p-6 space-y-6">
+          {loading && !refreshing ? (
+            <div className="flex justify-center py-24">
+              <LoadingSpinner size="lg" text="Loading dashboard..." />
             </div>
+          ) : (
+            <>
+              {/* 1. Deployment status banner */}
+              <div className="card border-l-4 border-l-fresh-500 p-5 flex flex-col md:flex-row items-center justify-between gap-6" style={{ background: 'linear-gradient(90deg, rgba(34,197,94,0.05) 0%, transparent 100%)' }}>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2.5 h-2.5 rounded-full bg-fresh-500 animate-pulse"></div>
+                    <span className="text-lg font-bold text-fresh-300 tracking-tight">v1.0.0 Green — Active & Serving Traffic</span>
+                  </div>
+                  <p className="text-sm text-dark-400">Promoted from BlueGreen deployment via Argo Rollouts · Previous: v0.0.3</p>
+                </div>
+                
+                <div className="flex items-center gap-6 md:border-l border-dark-700 md:pl-6 w-full md:w-auto">
+                  <div>
+                    <div className="text-[10px] text-dark-400 uppercase font-semibold mb-0.5">Active Service</div>
+                    <div className="text-sm font-mono text-fresh-400">frontend-active</div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-dark-400 uppercase font-semibold mb-0.5">Strategy</div>
+                    <div className="text-sm font-mono text-brand-400">BlueGreen</div>
+                  </div>
+                </div>
+              </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
-              <StockBarChart data={monthlyData} />
-              <CategoryPieChart stocks={stocks} />
-            </div>
+              {/* 2. Stats grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard title="Total Medicines" value={totalMedicines} subtitle={`${activeMedicines} active`} icon={Pill} color="brand" loading={loading} />
+                <StatCard title="Total Stock" value={totalStock} subtitle={`${lowStockCount} low stock`} icon={Package} color="blue" loading={loading} />
+                <StatCard title="Active Alerts" value={activeAlerts} subtitle={`${outOfStockCount} out of stock`} icon={Bell} color={activeAlerts > 0 ? 'red' : 'green'} loading={loading} />
+                <StatCard title="Total Users" value={totalUsers} subtitle={`${totalCategories} categories`} icon={Users} color="purple" loading={loading} />
+              </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <div>
-                <h2 className="font-semibold text-[#1A1A1A] mb-4 text-sm">
-                  Active Alerts
-                </h2>
-                <div className="space-y-3">
-                  {alerts.length === 0 ? (
-                    <div className="card p-6 text-center text-[#6B7280] text-sm">
-                      No active alerts 🎉
+              {/* 3. Charts row */}
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <div className="card p-5 lg:col-span-3">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-brand-500/10 rounded-lg border border-brand-500/20"><Activity size={18} className="text-brand-400" /></div>
+                    <div>
+                      <h3 className="font-bold text-white text-lg leading-tight">Top Stock Levels</h3>
+                      <p className="text-xs text-dark-400">Top 8 medicines by quantity</p>
                     </div>
-                  ) : (
-                    alerts.slice(0, 5).map((a) => (
-                      <AlertCard
-                        key={a._id}
-                        alert={a}
-                        onResolve={handleResolve}
+                  </div>
+                  <StockBarChart data={stockChartData} />
+                </div>
+                <div className="card p-5 lg:col-span-2">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-purple-500/10 rounded-lg border border-purple-500/20"><TrendingUp size={18} className="text-purple-400" /></div>
+                    <div>
+                      <h3 className="font-bold text-white text-lg leading-tight">By Category</h3>
+                      <p className="text-xs text-dark-400">Medicine distribution</p>
+                    </div>
+                  </div>
+                  <CategoryPieChart data={catChartData} />
+                </div>
+              </div>
+
+              {/* 4. Recent Alerts */}
+              {recentAlerts.length > 0 && (
+                <div className="card p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-white text-lg">Recent Alerts</h3>
+                    <a href="/admin/alerts" className="text-sm font-semibold text-brand-400 hover:text-brand-300 transition-colors">View all →</a>
+                  </div>
+                  <div className="space-y-3">
+                    {recentAlerts.map(alert => (
+                      <AlertCard 
+                        key={alert._id} 
+                        alert={alert} 
+                        onResolve={handleResolve} 
                       />
-                    ))
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
-
-              <div>
-                <h2 className="font-semibold text-[#1A1A1A] mb-4 text-sm">
-                  Recent Movements
-                </h2>
-                <div className="card overflow-hidden">
-                  {movements.length === 0 ? (
-                    <div className="p-6 text-center text-[#6B7280] text-sm">
-                      No movements recorded yet
-                    </div>
-                  ) : (
-                    <table className="w-full">
-                      <thead>
-                        <tr>
-                          <th className="table-th">Medicine</th>
-                          <th className="table-th">Type</th>
-                          <th className="table-th">Qty</th>
-                          <th className="table-th">Date</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {movements.slice(0, 8).map((m) => (
-                          <tr key={m._id} className="border-b border-[#F0F0F0] last:border-0">
-                            <td className="table-td font-medium text-xs">
-                              {m.medicineName}
-                            </td>
-                            <td className="table-td">
-                              <span
-                                className={`badge text-[10px] ${
-                                  m.type === 'STOCK_IN'
-                                    ? 'badge-green'
-                                    : 'badge-red'
-                                }`}
-                              >
-                                {m.type === 'STOCK_IN' ? 'IN' : 'OUT'}
-                              </span>
-                            </td>
-                            <td className="table-td">{m.quantity}</td>
-                            <td className="table-td text-xs text-[#6B7280]">
-                              {new Date(
-                                m.date || m.createdAt
-                              ).toLocaleDateString('en-IN')}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+              )}
+            </>
+          )}
+        </div>
       </main>
     </div>
   );

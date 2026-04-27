@@ -1,189 +1,157 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, ShoppingBag, Search, Shield, Truck, Clock } from 'lucide-react';
-import { getMedicines, getCategories } from '../api/catalogApi';
-import { getStocks } from '../api/inventoryApi';
-import MedicineCard from '../components/common/MedicineCard';
-import LoginPromptModal from '../components/common/LoginPromptModal';
-import LoadingSpinner from '../components/common/LoadingSpinner';
-import { useAuth } from '../context/AuthContext';
-import { useCart } from '../context/CartContext';
-
-const CATEGORY_ICONS = {
-  Antibiotics: '🛡️', Painkillers: '💊', Vitamins: '☀️', Antidiabetics: '📊',
-  Antihypertensives: '❤️', Antacids: '💧', Antihistamines: '🌬️', Syrups: '🧴',
-};
+import { Link } from 'react-router-dom';
+import { Pill, Shield, Activity, ArrowRight, Terminal, Server, GitBranch, CheckCircle } from 'lucide-react';
 
 export default function Home() {
-  const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const { addToCart } = useCart();
-  const [medicines, setMedicines] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [stockMap, setStockMap] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [toast, setToast] = useState(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [medRes, catRes, stockRes] = await Promise.all([getMedicines(), getCategories(), getStocks()]);
-        const meds = medRes.data?.data?.medicines || medRes.data?.data || [];
-        const cats = catRes.data?.data?.categories || catRes.data?.data || [];
-        const stocks = stockRes.data?.data?.stocks || stockRes.data?.data || [];
-        const map = {};
-        stocks.forEach((s) => { map[s.medicineName] = s; });
-        setMedicines(meds.slice(0, 8));
-        setCategories(cats);
-        setStockMap(map);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
-  const showToast = (msg, type = 'success') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const handleAddToCart = (medicine, stock) => {
-    if (!isAuthenticated) { setShowLoginModal(true); return; }
-    addToCart(medicine, 1, stock?.currentQuantity || 999);
-    showToast(`${medicine.name} added to cart!`);
-  };
-
   return (
-    <div>
-      {/* Hero */}
-      <section className="bg-[#1A1A1A] text-white py-20">
-        <div className="page-container flex flex-col lg:flex-row items-center gap-12">
-          <div className="flex-1 text-center lg:text-left">
-            <span className="inline-block badge bg-[#2D6A4F]/20 text-[#74C69D] mb-4">🏥 Trusted Pharmacy Platform</span>
-            <h1 className="text-4xl lg:text-5xl font-extrabold leading-tight mb-5">
-              Your Health,<br /><span className="text-[#2D6A4F]">Our Priority</span>
-            </h1>
-            <p className="text-gray-400 text-lg mb-8 max-w-lg">
-              Browse 200+ authentic medicines from verified manufacturers. No prescription needed to explore — order with confidence.
+    <div className="min-h-screen bg-dark-950 font-sans text-dark-100 flex flex-col relative overflow-hidden">
+      
+      {/* Background decoration */}
+      <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-brand-500/10 blur-[120px] pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-fresh-500/10 blur-[120px] pointer-events-none"></div>
+      <div 
+        className="absolute inset-0 opacity-[0.03] pointer-events-none z-0"
+        style={{ backgroundImage: 'linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px)', backgroundSize: '32px 32px' }}
+      ></div>
+
+      <div className="page-container relative z-10 py-20 flex-1 flex flex-col justify-center">
+        
+        {/* Hero Section */}
+        <div className="max-w-4xl mx-auto text-center mb-24 mt-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-dark-800 border border-dark-700 mb-8 animate-fade-in">
+            <div className="w-2 h-2 rounded-full bg-fresh-500 animate-pulse"></div>
+            <span className="text-xs font-mono text-fresh-400 font-semibold tracking-wide">Pharmacy OS v1.0.0</span>
+          </div>
+          
+          <h1 className="text-5xl md:text-7xl font-black text-white leading-tight mb-6 tracking-tight animate-slide-up">
+            Next-Generation <br className="hidden md:block" />
+            <span className="text-gradient-brand">Pharmacy Management</span>
+          </h1>
+          
+          <p className="text-lg md:text-xl text-dark-400 max-w-2xl mx-auto mb-10 leading-relaxed animate-slide-up" style={{ animationDelay: '100ms' }}>
+            Streamline your pharmacy operations with our comprehensive, secure, and intuitive digital platform. Real-time monitoring built for scale.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: '200ms' }}>
+            <Link to="/shop" className="btn-primary py-4 px-8 text-base shadow-xl shadow-brand-500/20 w-full sm:w-auto justify-center">
+              Explore Catalog <ArrowRight size={18} />
+            </Link>
+            <Link to="/login" className="btn-secondary py-4 px-8 text-base w-full sm:w-auto justify-center">
+              Sign In to Admin
+            </Link>
+          </div>
+        </div>
+
+        {/* Features Section */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-24">
+          <div className="card p-8 border-brand-500/20 bg-dark-900/50 hover:-translate-y-2 transition-transform duration-300">
+            <div className="w-14 h-14 rounded-2xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center mb-6">
+              <Shield size={28} className="text-brand-400" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Secure Architecture</h3>
+            <p className="text-dark-400 leading-relaxed">
+              Enterprise-grade security with robust JWT authentication and Role-Based Access Control protecting sensitive data.
             </p>
-            <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
-              <Link to="/shop" id="hero-shop-btn" className="btn-primary flex items-center gap-2 text-base px-7 py-3.5">
-                <ShoppingBag size={18} /> Shop Now
-              </Link>
-              <Link to="/shop" id="hero-browse-btn" className="flex items-center gap-2 text-base px-7 py-3.5 rounded-lg border border-white/20 text-white hover:bg-white/10 transition-all duration-200">
-                Browse Categories <ArrowRight size={18} />
-              </Link>
-            </div>
           </div>
-          <div className="flex-1 grid grid-cols-2 gap-4 max-w-xs lg:max-w-sm">
-            {[
-              { icon: Shield, label: 'Verified Medicines', sub: '100% authentic' },
-              { icon: Truck, label: 'Fast Delivery', sub: 'Pan India shipping' },
-              { icon: Search, label: 'Easy Search', sub: 'Find in seconds' },
-              { icon: Clock, label: '24/7 Support', sub: 'Always available' },
-            ].map(({ icon: Icon, label, sub }) => (
-              <div key={label} className="bg-white/5 rounded-xl p-4 text-center">
-                <Icon size={24} className="text-[#2D6A4F] mx-auto mb-2" />
-                <p className="text-sm font-semibold">{label}</p>
-                <p className="text-xs text-gray-400">{sub}</p>
-              </div>
-            ))}
+
+          <div className="card p-8 border-fresh-500/20 bg-dark-900/50 hover:-translate-y-2 transition-transform duration-300 delay-100">
+            <div className="w-14 h-14 rounded-2xl bg-fresh-500/10 border border-fresh-500/20 flex items-center justify-center mb-6">
+              <Activity size={28} className="text-fresh-400" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Real-time Monitoring</h3>
+            <p className="text-dark-400 leading-relaxed">
+              Live stock tracking, automated low-inventory alerts, and comprehensive movement history dashboards.
+            </p>
+          </div>
+
+          <div className="card p-8 border-purple-500/20 bg-dark-900/50 hover:-translate-y-2 transition-transform duration-300 delay-200">
+            <div className="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-6">
+              <Pill size={28} className="text-purple-400" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-3">Comprehensive Catalog</h3>
+            <p className="text-dark-400 leading-relaxed">
+              Manage your entire inventory across multiple categories with detailed metadata, expiry tracking, and analytics.
+            </p>
           </div>
         </div>
-      </section>
 
-      {/* Categories */}
-      <section className="py-10 border-b border-[#F0F0F0]">
-        <div className="page-container">
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-            {categories.map((cat) => (
-              <Link
-                key={cat._id}
-                to={`/shop?category=${cat.name}`}
-                id={`cat-${cat.name.toLowerCase().replace(/\s+/g, '-')}`}
-                className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 bg-white border border-[#F0F0F0] rounded-full text-sm font-medium text-[#1A1A1A] hover:border-[#2D6A4F] hover:text-[#2D6A4F] hover:bg-[#E8F5E9] transition-all duration-200"
-              >
-                <span>{CATEGORY_ICONS[cat.name] || '💊'}</span>
-                {cat.name}
-              </Link>
-            ))}
+        {/* Infrastructure / DevOps Section */}
+        <div className="max-w-4xl mx-auto w-full mb-10">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl font-bold text-white mb-2">Powered by GitOps</h2>
+            <p className="text-dark-400">Zero-downtime deployments managed via Argo Rollouts</p>
           </div>
-        </div>
-      </section>
 
-      {/* Featured Medicines */}
-      <section className="py-14">
-        <div className="page-container">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="section-title">Popular Medicines</h2>
-              <p className="text-sm text-[#6B7280] mt-1">Most searched and ordered products</p>
+          <div className="card p-1 md:p-6 bg-dark-900/80 border-dark-700 shadow-2xl relative overflow-hidden">
+            {/* Mock CLI Background */}
+            <div className="absolute top-0 left-0 w-full h-8 bg-dark-950 border-b border-dark-800 flex items-center px-4 gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              <span className="text-[10px] text-dark-500 font-mono ml-4">kubectl get rollout rxpulse-frontend</span>
             </div>
-            <Link to="/shop" className="flex items-center gap-1.5 text-sm font-semibold text-[#2D6A4F] hover:underline">
-              View All <ArrowRight size={16} />
-            </Link>
-          </div>
-          {loading ? (
-            <div className="flex justify-center py-16"><LoadingSpinner size="lg" text="Loading medicines..." /></div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {medicines.map((med) => (
-                <MedicineCard key={med._id} medicine={med} stock={stockMap[med.name]} onAddToCart={handleAddToCart} />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
 
-      {/* How It Works */}
-      <section className="py-14 bg-[#FAFAFA]">
-        <div className="page-container">
-          <h2 className="section-title text-center mb-3">How It Works</h2>
-          <p className="text-center text-[#6B7280] text-sm mb-12">Order medicines in 3 simple steps</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { step: '01', icon: Search, title: 'Browse Medicines', desc: 'Search from 200+ authentic medicines across 8 categories. No login needed to browse.' },
-              { step: '02', icon: ShoppingBag, title: 'Add to Cart', desc: 'Select the medicines you need, set quantity and add to cart. Login required to add items.' },
-              { step: '03', icon: Truck, title: 'Place Order', desc: 'Review your cart, confirm your order and get medicines delivered to your doorstep.' },
-            ].map(({ step, icon: Icon, title, desc }) => (
-              <div key={step} className="text-center">
-                <div className="relative w-16 h-16 mx-auto mb-5">
-                  <div className="w-16 h-16 bg-[#E8F5E9] rounded-2xl flex items-center justify-center">
-                    <Icon size={28} className="text-[#2D6A4F]" />
+            <div className="pt-10 pb-4 px-4 font-mono text-sm">
+              <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 my-8">
+                
+                {/* Blue Version */}
+                <div className="flex flex-col items-center opacity-50 grayscale">
+                  <div className="w-16 h-16 rounded-2xl bg-stable-500/10 border-2 border-stable-500/30 flex items-center justify-center mb-4 relative">
+                    <Server size={32} className="text-stable-500" />
+                    <span className="absolute -top-3 -right-3 badge-blue bg-dark-900 border-stable-500/50">Blue</span>
                   </div>
-                  <span className="absolute -top-2 -right-2 w-6 h-6 bg-[#1A1A1A] text-white text-[10px] font-bold rounded-full flex items-center justify-center">{step}</span>
+                  <span className="text-stable-400 font-bold">v0.0.3</span>
+                  <span className="text-xs text-dark-500 mt-1">Previous Release</span>
+                  <span className="text-xs font-bold text-stable-500 mt-2">Traffic: 0%</span>
                 </div>
-                <h3 className="font-bold text-[#1A1A1A] mb-2">{title}</h3>
-                <p className="text-sm text-[#6B7280] leading-relaxed">{desc}</p>
+
+                {/* Transition Arrow */}
+                <div className="flex flex-col items-center">
+                  <div className="flex items-center gap-2 text-dark-500">
+                    <div className="h-0.5 w-12 bg-dark-700"></div>
+                    <GitBranch size={24} className="text-brand-500" />
+                    <div className="h-0.5 w-12 bg-gradient-to-r from-dark-700 to-fresh-500/50"></div>
+                  </div>
+                  <span className="text-[10px] bg-dark-800 px-2 py-1 rounded text-dark-400 mt-2 border border-dark-700">Promoted</span>
+                </div>
+
+                {/* Green Version */}
+                <div className="flex flex-col items-center">
+                  <div className="w-16 h-16 rounded-2xl bg-fresh-500/10 border-2 border-fresh-500 shadow-[0_0_30px_rgba(34,197,94,0.2)] flex items-center justify-center mb-4 relative">
+                    <Server size={32} className="text-fresh-500" />
+                    <span className="absolute -top-3 -right-3 badge-green bg-dark-900 border-fresh-500/50 flex items-center gap-1">
+                      <CheckCircle size={10} /> Active
+                    </span>
+                  </div>
+                  <span className="text-fresh-400 font-bold">v1.0.0</span>
+                  <span className="text-xs text-dark-300 mt-1">Current Release</span>
+                  <span className="text-xs font-bold text-fresh-500 mt-2">Traffic: 100%</span>
+                </div>
+
               </div>
-            ))}
+
+              <div className="mt-8 bg-dark-950 rounded-lg p-4 text-[11px] md:text-xs text-dark-400 overflow-x-auto border border-dark-800">
+                <div className="flex gap-4">
+                  <span className="text-brand-400">STATUS:</span>
+                  <span className="text-fresh-400">✔ Healthy</span>
+                </div>
+                <div className="flex gap-4 mt-1">
+                  <span className="text-brand-400">STRATEGY:</span>
+                  <span>BlueGreen</span>
+                </div>
+                <div className="flex gap-4 mt-1">
+                  <span className="text-brand-400">ACTIVE SVC:</span>
+                  <span>frontend-active</span>
+                </div>
+                <div className="flex gap-4 mt-1">
+                  <span className="text-brand-400">MESSAGE:</span>
+                  <span>Rollout is fully promoted. Green version is serving 100% of traffic.</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
 
-      {/* CTA Banner */}
-      <section className="py-14">
-        <div className="page-container">
-          <div className="bg-[#1A1A1A] rounded-2xl p-10 text-center text-white">
-            <h2 className="text-2xl font-bold mb-3">Ready to get started?</h2>
-            <p className="text-gray-400 mb-6">Create a free account and start ordering medicines today.</p>
-            <Link to="/register" className="btn-primary inline-flex items-center gap-2 text-base px-8 py-3.5">
-              Create Free Account <ArrowRight size={18} />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {showLoginModal && <LoginPromptModal onClose={() => setShowLoginModal(false)} />}
-      {toast && (
-        <div className="toast-container">
-          <div className={`toast ${toast.type}`}>{toast.msg}</div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

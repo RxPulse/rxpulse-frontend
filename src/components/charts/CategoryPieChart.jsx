@@ -1,76 +1,67 @@
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
-const COLORS = [
-  '#2D6A4F', '#52B788', '#74C69D',
-  '#95D5B2', '#B7E4C7', '#40916C',
-  '#1B4332', '#D8F3DC',
-];
-
-export default function CategoryPieChart({ stocks = [] }) {
-  const safeStocks = Array.isArray(stocks) ? stocks : [];
-
-  const categoryMap = {};
-  safeStocks.forEach((s) => {
-    const cat = s.category || 'Other';
-    categoryMap[cat] =
-      (categoryMap[cat] || 0) + (s.currentQuantity || 0);
-  });
-
-  const data = Object.entries(categoryMap).map(
-    ([name, value]) => ({ name, value })
-  );
-
-  if (data.length === 0) {
+export default function CategoryPieChart({ data }) {
+  if (!data || data.length === 0) {
     return (
-      <div className="card p-5 flex items-center justify-center h-64">
-        <p className="text-sm text-[#6B7280]">
-          No stock data available
-        </p>
+      <div className="h-[240px] flex items-center justify-center">
+        <span className="text-dark-500 font-medium">No category data available</span>
       </div>
     );
   }
 
+  const COLORS = ['#2aa3f7', '#22c55e', '#f59e0b', '#a78bfa', '#f472b6', '#34d399', '#60a5fa'];
+
+  const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const data = payload[0];
+      return (
+        <div className="card p-3 shadow-xl border border-dark-700 bg-dark-800/95 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: data.payload.fill }}></div>
+            <p className="font-semibold text-white">{data.name}</p>
+          </div>
+          <p className="text-sm mt-1" style={{ color: data.payload.fill }}>
+            <span className="text-dark-400 mr-2">Count:</span>
+            <span className="font-bold">{data.value}</span>
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderLegend = (props) => {
+    const { payload } = props;
+    return (
+      <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4">
+        {payload.map((entry, index) => (
+          <li key={`item-${index}`} className="flex items-center gap-1.5 text-xs text-dark-300">
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }}></div>
+            {entry.value}
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
   return (
-    <div className="card p-5">
-      <h3 className="font-semibold text-[#1A1A1A] mb-5 text-sm">
-        Stock by Category
-      </h3>
-      <ResponsiveContainer width="100%" height={220}>
+    <div className="h-[260px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
             data={data}
-            cx="50%"
-            cy="50%"
-            outerRadius={80}
+            innerRadius={60}
+            outerRadius={90}
+            paddingAngle={3}
             dataKey="value"
-            nameKey="name"
+            stroke="transparent"
           >
-            {data.map((_, i) => (
-              <Cell
-                key={i}
-                fill={COLORS[i % COLORS.length]}
-              />
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
             ))}
           </Pie>
-          <Tooltip
-            formatter={(value, name) => [
-              value + ' units',
-              name,
-            ]}
-            contentStyle={{
-              border: '1px solid #F0F0F0',
-              borderRadius: '8px',
-              fontSize: '12px',
-            }}
-          />
-          <Legend wrapperStyle={{ fontSize: '11px' }} />
+          <Tooltip content={<CustomTooltip />} />
+          <Legend content={renderLegend} verticalAlign="bottom" />
         </PieChart>
       </ResponsiveContainer>
     </div>

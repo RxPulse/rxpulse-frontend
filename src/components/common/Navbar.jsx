@@ -1,134 +1,159 @@
-import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import {
-  Pill, ShoppingCart, User,
-  LogOut, Menu, X, ChevronDown
-} from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Pill, ShoppingCart, User, Menu, X, LogOut, Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
+import clsx from 'clsx';
 
 export default function Navbar() {
-  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { user, isAuthenticated, logout, isAdmin } = useAuth();
   const { totalItems } = useCart();
   const navigate = useNavigate();
-  const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
 
-  const isActive = (path) => location.pathname === path;
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleLogout = () => {
     logout();
     setUserMenuOpen(false);
-    navigate('/');
+    navigate('/login');
   };
 
+  const navLinkClass = ({ isActive }) => clsx(
+    "px-4 py-2 rounded-lg font-medium transition-colors duration-200 text-sm",
+    isActive ? "bg-brand-500/10 text-brand-400" : "text-dark-300 hover:text-dark-100 hover:bg-dark-800"
+  );
+
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-[#F0F0F0] shadow-sm">
-      <div className="page-container">
-        <div className="flex items-center justify-between h-16">
-
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-[#2D6A4F] rounded-lg flex items-center justify-center">
-              <Pill size={18} className="text-white" />
+    <header className="sticky top-0 z-40 w-full border-b border-dark-700/50" style={{ background: 'rgba(15,23,42,0.92)', backdropFilter: 'blur(20px)' }}>
+      <div className="page-container h-16 flex items-center justify-between">
+        
+        {/* Left: Logo */}
+        <Link to="/" className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-fresh-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
+            <Pill size={22} className="text-white" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xl font-bold tracking-tight text-gradient-brand">RxPulse</span>
+            <div className="flex items-center gap-1.5 -mt-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-fresh-500 animate-pulse"></div>
+              <span className="font-mono text-[10px] text-dark-400 leading-none">v1.0.0</span>
             </div>
-            <span className="text-xl font-bold text-[#1A1A1A]">RxPulse</span>
-          </Link>
+          </div>
+        </Link>
 
-          <nav className="hidden md:flex items-center gap-6">
-            <Link to="/" className={isActive('/') ? 'nav-link-active' : 'nav-link'}>Home</Link>
-            <Link to="/shop" className={isActive('/shop') ? 'nav-link-active' : 'nav-link'}>Shop</Link>
-            {isAdmin && (
-              <Link to="/admin/dashboard" className={location.pathname.startsWith('/admin') ? 'nav-link-active' : 'nav-link'}>
-                Admin Panel
-              </Link>
-            )}
-          </nav>
+        {/* Center: Desktop Nav */}
+        <nav className="hidden md:flex items-center gap-2">
+          <NavLink to="/shop" className={navLinkClass}>Shop</NavLink>
+          {isAdmin && <NavLink to="/admin/dashboard" className={navLinkClass}>Admin</NavLink>}
+        </nav>
 
-          <div className="flex items-center gap-3">
+        {/* Right: Actions */}
+        <div className="flex items-center gap-4">
+          
+          {/* Cart Button */}
+          {!isAdmin && (
+            <Link to="/cart" className="relative p-2 text-dark-300 hover:text-white hover:bg-dark-800 rounded-lg transition-colors">
+              <ShoppingCart size={22} />
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-brand-500 text-white rounded-full flex items-center justify-center text-[10px] font-bold border border-dark-900">
+                  {totalItems > 99 ? '99+' : totalItems}
+                </span>
+              )}
+            </Link>
+          )}
+
+          {/* User Menu */}
+          {isAuthenticated ? (
+            <div className="relative hidden md:block" ref={userMenuRef}>
+              <button 
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-3 pl-2 pr-4 py-1.5 bg-dark-800 hover:bg-dark-700 border border-dark-700 rounded-full transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-600 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
+                  {user.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="text-sm font-semibold text-white leading-none">{user.name.split(' ')[0]}</span>
+                  <span className="text-[10px] text-dark-400 capitalize leading-tight">{user.role}</span>
+                </div>
+              </button>
+
+              {/* Dropdown */}
+              {userMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-dark-800 border border-dark-700 rounded-xl shadow-xl py-2 animate-slide-up origin-top-right">
+                  <div className="px-4 py-3 border-b border-dark-700 mb-2">
+                    <p className="text-sm font-semibold text-white truncate">{user.name}</p>
+                    <p className="text-xs text-dark-400 truncate">{user.email}</p>
+                  </div>
+                  {isAdmin && (
+                    <Link to="/admin/dashboard" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-dark-200 hover:bg-dark-700 hover:text-white">
+                      <Shield size={16} className="text-brand-400" /> Admin Panel
+                    </Link>
+                  )}
+                  <button onClick={handleLogout} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 mt-1">
+                    <LogOut size={16} /> Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link to="/login" className="btn-primary hidden md:flex py-2 px-4">
+              <User size={18} /> Sign In
+            </Link>
+          )}
+
+          {/* Mobile Menu Toggle */}
+          <button 
+            className="md:hidden p-2 text-dark-300 hover:text-white hover:bg-dark-800 rounded-lg"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-dark-900 border-b border-dark-700 animate-slide-down">
+          <div className="px-4 pt-2 pb-4 space-y-1">
+            <Link to="/shop" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-base font-medium text-dark-200 hover:text-white hover:bg-dark-800 rounded-lg">Shop</Link>
+            
             {isAuthenticated ? (
               <>
-                {!isAdmin && (
-                  <Link to="/cart" id="cart-link" className="relative p-2 text-[#6B7280] hover:text-[#1A1A1A] transition-colors">
-                    <ShoppingCart size={22} />
-                    {totalItems > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-[#2D6A4F] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                        {totalItems > 99 ? '99+' : totalItems}
-                      </span>
-                    )}
+                {isAdmin && (
+                  <Link to="/admin/dashboard" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-base font-medium text-dark-200 hover:text-white hover:bg-dark-800 rounded-lg">
+                    Admin Panel
                   </Link>
                 )}
-                <div className="relative">
-                  <button
-                    id="user-menu-btn"
-                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-[#F5F5F5] transition-colors"
-                  >
-                    <div className="w-7 h-7 bg-[#E8F5E9] rounded-full flex items-center justify-center">
-                      <User size={14} className="text-[#2D6A4F]" />
-                    </div>
-                    <span className="text-sm font-medium text-[#1A1A1A] hidden sm:block max-w-[100px] truncate">
-                      {user?.name?.split(' ')[0]}
-                    </span>
-                    <ChevronDown size={14} className="text-[#6B7280]" />
+                <div className="border-t border-dark-800 my-2 pt-2">
+                  <div className="px-4 py-3">
+                    <p className="text-base font-medium text-white">{user.name}</p>
+                    <p className="text-sm text-dark-400">{user.email}</p>
+                  </div>
+                  <button onClick={handleLogout} className="w-full text-left px-4 py-3 text-base font-medium text-red-400 hover:bg-dark-800 rounded-lg flex items-center gap-2">
+                    <LogOut size={18} /> Sign Out
                   </button>
-                  {userMenuOpen && (
-                    <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-[#F0F0F0] rounded-xl shadow-lg py-1.5 z-50">
-                      <div className="px-4 py-2 border-b border-[#F0F0F0]">
-                        <p className="text-sm font-semibold text-[#1A1A1A] truncate">{user?.name}</p>
-                        <p className="text-xs text-[#6B7280] truncate">{user?.email}</p>
-                        {isAdmin && (
-                          <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wide bg-[#E8F5E9] text-[#2D6A4F] px-2 py-0.5 rounded-full">
-                            Admin
-                          </span>
-                        )}
-                      </div>
-                      {isAdmin && (
-                        <Link
-                          to="/admin/dashboard"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#1A1A1A] hover:bg-[#F5F5F5] transition-colors"
-                        >
-                          Admin Dashboard
-                        </Link>
-                      )}
-                      <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                      >
-                        <LogOut size={15} /> Logout
-                      </button>
-                    </div>
-                  )}
                 </div>
               </>
             ) : (
-              <div className="flex items-center gap-2">
-                <Link to="/login" id="login-btn" className="btn-ghost text-sm py-2 px-4">Login</Link>
-                <Link to="/register" id="register-btn" className="btn-primary text-sm py-2 px-4">Register</Link>
-              </div>
-            )}
-            <button className="md:hidden p-2 text-[#6B7280]" onClick={() => setMobileOpen(!mobileOpen)}>
-              {mobileOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
-          </div>
-        </div>
-
-        {mobileOpen && (
-          <div className="md:hidden border-t border-[#F0F0F0] py-3 space-y-1">
-            <Link to="/" onClick={() => setMobileOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-[#1A1A1A] hover:bg-[#F5F5F5]">Home</Link>
-            <Link to="/shop" onClick={() => setMobileOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-[#1A1A1A] hover:bg-[#F5F5F5]">Shop</Link>
-            {isAuthenticated && !isAdmin && (
-              <Link to="/cart" onClick={() => setMobileOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-[#1A1A1A] hover:bg-[#F5F5F5]">
-                Cart {totalItems > 0 && `(${totalItems})`}
+              <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="block mt-4 px-4 py-3 text-center text-base font-medium bg-brand-600 text-white rounded-xl">
+                Sign In
               </Link>
             )}
-            {isAdmin && (
-              <Link to="/admin/dashboard" onClick={() => setMobileOpen(false)} className="block px-4 py-2.5 rounded-lg text-sm font-medium text-[#2D6A4F] hover:bg-[#E8F5E9]">Admin Panel</Link>
-            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </header>
   );
 }

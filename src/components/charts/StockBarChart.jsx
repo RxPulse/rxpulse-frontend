@@ -1,89 +1,64 @@
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
-const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-export default function StockBarChart({ data = [] }) {
-  const safeData = Array.isArray(data) ? data : [];
-
-  const chartData = MONTHS.map((month, i) => {
-    const found = safeData.find(
-      (d) =>
-        d?._id?.month === i + 1 ||
-        d?.month === i + 1
+export default function StockBarChart({ data }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-[240px] flex items-center justify-center">
+        <span className="text-dark-500 font-medium">No stock data available</span>
+      </div>
     );
-    return {
-      month,
-      stockIn: found?.totalIn || found?.stockIn || 0,
-      stockOut: found?.totalOut || found?.stockOut || 0,
-    };
-  });
+  }
 
-  const hasData = chartData.some(
-    (d) => d.stockIn > 0 || d.stockOut > 0
-  );
+  const maxQuantity = Math.max(...data.map((d) => d.quantity));
 
-  return (
-    <div className="card p-5">
-      <h3 className="font-semibold text-[#1A1A1A] mb-5 text-sm">
-        Monthly Stock Movement
-      </h3>
-      {!hasData ? (
-        <div className="flex items-center justify-center h-[220px]">
-          <p className="text-sm text-[#6B7280]">
-            No movement data available
+  const CustomTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="card p-3 shadow-xl border border-dark-700 bg-dark-800/95 backdrop-blur-sm">
+          <p className="font-semibold text-white mb-1">{payload[0].payload.name}</p>
+          <p className="text-sm">
+            <span className="text-dark-400 mr-2">Quantity:</span>
+            <span className="text-brand-300 font-bold">{payload[0].value}</span>
           </p>
         </div>
-      ) : (
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={chartData} barGap={4}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
-            <XAxis
-              dataKey="month"
-              tick={{ fontSize: 11, fill: '#6B7280' }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              tick={{ fontSize: 11, fill: '#6B7280' }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <Tooltip
-              contentStyle={{
-                border: '1px solid #F0F0F0',
-                borderRadius: '8px',
-                fontSize: '12px',
-              }}
-              cursor={{ fill: '#F5F5F5' }}
-            />
-            <Legend wrapperStyle={{ fontSize: '11px' }} />
-            <Bar
-              dataKey="stockIn"
-              name="Stock In"
-              fill="#2D6A4F"
-              radius={[4, 4, 0, 0]}
-            />
-            <Bar
-              dataKey="stockOut"
-              name="Stock Out"
-              fill="#95D5B2"
-              radius={[4, 4, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      )}
+      );
+    }
+    return null;
+  };
+
+  return (
+    <div className="h-[240px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+          <XAxis 
+            dataKey="name" 
+            tick={{ fill: '#64748b', fontSize: 11 }} 
+            axisLine={{ stroke: '#334155' }}
+            tickLine={{ stroke: '#334155' }}
+            angle={-30} 
+            textAnchor="end" 
+            height={50} 
+            interval={0}
+          />
+          <YAxis 
+            tick={{ fill: '#64748b', fontSize: 11 }} 
+            axisLine={false} 
+            tickLine={false} 
+          />
+          <Tooltip content={<CustomTooltip />} cursor={{ fill: '#1e293b', opacity: 0.4 }} />
+          <Bar dataKey="quantity" radius={[6, 6, 0, 0]} maxBarSize={48}>
+            {data.map((entry, index) => {
+              let color = '#2aa3f7'; // brand blue
+              if (entry.quantity === 0) color = '#ef4444'; // red
+              else if (entry.isLowStock) color = '#f59e0b'; // yellow
+              else if (entry.quantity === maxQuantity) color = '#22c55e'; // green
+
+              return <Cell key={`cell-${index}`} fill={color} />;
+            })}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 }
